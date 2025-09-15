@@ -127,4 +127,18 @@ export class UsersService {
   async isAccountLocked(user: UserDocument): Promise<boolean> {
     return user.lockedUntil && user.lockedUntil > new Date();
   }
+
+  async updateKidsDataStatus(userId: string, completed: boolean): Promise<User> {
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      { kidsDataCompleted: completed },
+      { new: true },
+    );
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
 }

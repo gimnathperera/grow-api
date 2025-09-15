@@ -92,6 +92,14 @@ export class AuthService {
       });
     }
 
+    // If kids data not completed, block refresh as well
+    if (!user.kidsDataCompleted) {
+      throw new UnauthorizedException({
+        errorCode: ErrorCodes.AUTH_KIDS_DATA_REQUIRED,
+        message: 'You must complete kids data before logging in.',
+      });
+    }
+
     // Revoke the used refresh token
     await this.refreshTokenModel.findByIdAndUpdate(refreshToken._id, {
       isRevoked: true,
@@ -164,6 +172,7 @@ export class AuthService {
       status: user.status,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
-    };
+      kidsDataCompleted: user.kidsDataCompleted,
+    }as any;
   }
 }

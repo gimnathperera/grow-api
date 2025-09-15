@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
+import { Document, Types } from "mongoose";
 import { UserRole } from "../../common/guards/roles.guard";
+import { Kid } from "@/kids/schemas/kid.schema";
 
 export type UserDocument = User &
   Document & {
@@ -48,6 +49,12 @@ export class User {
 
   @Prop()
   twoFactorSecret?: string;
+
+  @Prop({ default: false })
+  kidsDataCompleted: boolean;
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: "Kid" }] })
+  kids: Kid[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
