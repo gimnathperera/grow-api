@@ -36,6 +36,9 @@ export class UserProfileDto {
 
   @ApiProperty({ example: '2024-01-01T12:00:00.000Z' })
   updatedAt: string;
+
+  @ApiProperty({ example: false, description: 'Indicates whether user has completed kids data step' })
+  kidsDataCompleted: boolean;
 }
 
 export class LoginResponseDto {

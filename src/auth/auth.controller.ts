@@ -152,6 +152,7 @@ export class AuthController {
       status: user.status,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
+      kidsDataCompleted: user.kidsDataCompleted ?? false,
     };
 
     return {

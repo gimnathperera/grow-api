@@ -6,6 +6,7 @@ export enum ErrorCodes {
   AUTH_INSUFFICIENT_PERMISSIONS = 'AUTH_INSUFFICIENT_PERMISSIONS',
   AUTH_ACCOUNT_LOCKED = 'AUTH_ACCOUNT_LOCKED',
   AUTH_ACCOUNT_NOT_FOUND = 'AUTH_ACCOUNT_NOT_FOUND',
+  AUTH_KIDS_DATA_REQUIRED = 'AUTH_KIDS_DATA_REQUIRED',
 
   // Validation
   VALIDATION_ERROR = 'VALIDATION_ERROR',
@@ -59,6 +60,7 @@ export const ErrorMessages: Record<ErrorCodes, string> = {
   [ErrorCodes.AUTH_INSUFFICIENT_PERMISSIONS]: 'Insufficient permissions for this action',
   [ErrorCodes.AUTH_ACCOUNT_LOCKED]: 'Account is locked due to multiple failed attempts',
   [ErrorCodes.AUTH_ACCOUNT_NOT_FOUND]: 'Account not found',
+  [ErrorCodes.AUTH_KIDS_DATA_REQUIRED]: 'You must complete kids data before logging in.',
 
   [ErrorCodes.VALIDATION_ERROR]: 'Validation failed',
   [ErrorCodes.VALIDATION_REQUIRED_FIELD]: 'Required field is missing',
