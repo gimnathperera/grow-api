@@ -26,9 +26,19 @@ async function bootstrap() {
   // Global logging interceptor
   app.useGlobalInterceptors(new LoggingInterceptor());
 
-  // CORS configuration
+  const corsOrigins = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:3001')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3001',
+    origin: (origin, callback) => {
+      if (!origin || corsOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
   });
 
