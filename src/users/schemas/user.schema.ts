@@ -53,8 +53,8 @@ export class User {
   @Prop({ default: false })
   kidsDataCompleted: boolean;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: "Kid" }] })
-  kids: Kid[];
+  @Prop({ type: [{ type: Types.ObjectId, ref: Kid.name }], default: [] })
+  kids: Types.ObjectId[] | Kid[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
@@ -63,3 +63,19 @@ export const UserSchema = SchemaFactory.createForClass(User);
 UserSchema.index({ role: 1 });
 UserSchema.index({ status: 1 });
 UserSchema.index({ createdAt: -1 });
+
+UserSchema.set("toJSON", {
+  virtuals: true,
+  versionKey: false,
+  transform: (_: unknown, ret: any) => {
+    if (ret._id) {
+      ret._id = ret._id.toString();
+    }
+    if (Array.isArray(ret.kids)) {
+      ret.kids = ret.kids.map((kid: any) =>
+        kid && kid._id ? { ...kid, _id: kid._id.toString() } : kid?.toString?.() ?? kid
+      );
+    }
+    return ret;
+  },
+});

@@ -4,10 +4,12 @@ import { Types } from 'mongoose';
 
 export type KidDocument = Kid & Document;
 
-@Schema({ timestamps: true })
+@Schema({
+  timestamps: true,
+})
 export class Kid {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  parentId: string;
+  parentId: Types.ObjectId;
 
   @Prop({ required: true })
   name: string;
@@ -29,3 +31,29 @@ export class Kid {
 }
 
 export const KidSchema = SchemaFactory.createForClass(Kid);
+
+KidSchema.index({ parentId: 1, name: 1 });
+
+KidSchema.virtual('parent', {
+  ref: 'User',
+  localField: 'parentId',
+  foreignField: '_id',
+  justOne: true,
+});
+
+KidSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform: (_: unknown, ret: any) => {
+    if (ret._id) {
+      ret._id = ret._id.toString();
+    }
+    if (ret.parentId) {
+      ret.parentId = ret.parentId.toString();
+    }
+    if (ret.parent && ret.parent._id) {
+      ret.parent._id = ret.parent._id.toString();
+    }
+    return ret;
+  },
+});

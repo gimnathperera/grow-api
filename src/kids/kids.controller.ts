@@ -10,6 +10,8 @@ import {
   Delete,
   HttpException,
   HttpStatus,
+  Query,
+  ForbiddenException,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -20,8 +22,9 @@ import {
   ApiBody,
   ApiConsumes,
   ApiProduces,
+  ApiQuery,
 } from "@nestjs/swagger";
-import { KidsService } from "./kids.service";
+import { KidView, KidsService } from "./kids.service";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { CreateKidDto, UpdateKidDto } from "./dto/kids.dto";
 import {
@@ -30,6 +33,7 @@ import {
   KidDetailResponseDto,
 } from "./dto/kid-response.dto";
 import { SuccessResponseDto } from "../common/dto/response.dto";
+import { UserRole } from "../common/guards/roles.guard";
 
 @ApiTags("Kids")
 @Controller("kids")
@@ -75,7 +79,7 @@ export class KidsController {
   async addKid(
     @Request() req,
     @Body() dto: CreateKidDto
-  ): Promise<SuccessResponseDto<any>> {
+  ): Promise<SuccessResponseDto<KidView>> {
     try {
       const kid = await this.kidsService.create(req.user.sub, dto);
       return {
@@ -84,6 +88,9 @@ export class KidsController {
         meta: { traceId: "add-kid", timestamp: new Date().toISOString() },
       };
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         "Failed to create kid profile",
         HttpStatus.INTERNAL_SERVER_ERROR
@@ -106,16 +113,37 @@ export class KidsController {
     status: 401,
     description: "Unauthorized - Invalid or missing JWT token",
   })
+  @ApiQuery({
+    name: "parentId",
+    required: false,
+    description:
+      "Optional parent identifier for admin or team members to fetch kids for a specific parent",
+  })
   @ApiProduces("application/json")
-  async getKids(@Request() req): Promise<SuccessResponseDto<any[]>> {
+  async getKids(
+    @Request() req,
+    @Query("parentId") parentId?: string
+  ): Promise<SuccessResponseDto<KidView[]>> {
     try {
-      const kids = await this.kidsService.findByParent(req.user.sub);
+      const effectiveParentId = parentId ?? req.user.sub;
+
+      if (
+        effectiveParentId !== req.user.sub &&
+        ![UserRole.ADMIN, UserRole.TEAM].includes(req.user.role)
+      ) {
+        throw new ForbiddenException("Access denied to requested parent");
+      }
+
+      const kids = await this.kidsService.findByParent(effectiveParentId);
       return {
         ok: true,
         data: kids,
         meta: { traceId: "get-kids", timestamp: new Date().toISOString() },
       };
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         "Failed to retrieve kids",
         HttpStatus.INTERNAL_SERVER_ERROR
@@ -161,7 +189,7 @@ export class KidsController {
   async getKid(
     @Param("id") id: string,
     @Request() req
-  ): Promise<SuccessResponseDto<any>> {
+  ): Promise<SuccessResponseDto<KidView>> {
     try {
       const kid = await this.kidsService.findByIdAndParent(id, req.user.sub);
       return {
@@ -227,7 +255,7 @@ export class KidsController {
     @Param("id") id: string,
     @Body() dto: UpdateKidDto,
     @Request() req
-  ): Promise<SuccessResponseDto<any>> {
+  ): Promise<SuccessResponseDto<KidView>> {
     try {
       const kid = await this.kidsService.update(id, req.user.sub, dto);
       return {

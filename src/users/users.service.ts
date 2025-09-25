@@ -1,6 +1,6 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { User, UserDocument } from './schemas/user.schema';
 import { RegisterDto } from '../auth/dto/auth.dto';
@@ -140,5 +140,45 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async linkKidToParent(
+    userId: string,
+    kidId: Types.ObjectId | string
+  ): Promise<void> {
+    const kidObjectId =
+      typeof kidId === 'string' ? new Types.ObjectId(kidId) : kidId;
+    const result = await this.userModel.findByIdAndUpdate(
+      userId,
+      { $addToSet: { kids: kidObjectId } },
+      { new: false },
+    );
+
+    if (!result) {
+      throw new NotFoundException('User not found');
+    }
+  }
+
+  async unlinkKidFromParent(
+    userId: string,
+    kidId: Types.ObjectId | string
+  ): Promise<void> {
+    const kidObjectId =
+      typeof kidId === 'string' ? new Types.ObjectId(kidId) : kidId;
+    const result = await this.userModel.findByIdAndUpdate(
+      userId,
+      { $pull: { kids: kidObjectId } },
+      { new: false },
+    );
+
+    if (!result) {
+      throw new NotFoundException('User not found');
+    }
+  }
+
+  async findParentWithKids(userId: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findById(userId)
+      .populate({ path: 'kids', options: { sort: { createdAt: -1 } } });
   }
 }

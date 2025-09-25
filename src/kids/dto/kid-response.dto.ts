@@ -1,4 +1,36 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+
+export class KidParentResponseDto {
+  @ApiProperty({
+    description: "Unique identifier of the parent",
+    example: "507f1f77bcf86cd799439012",
+  })
+  id: string;
+
+  @ApiProperty({
+    description: "Parent name",
+    example: "John Doe",
+  })
+  name: string;
+
+  @ApiProperty({
+    description: "Parent email",
+    example: "parent@example.com",
+  })
+  email: string;
+
+  @ApiPropertyOptional({
+    description: "Parent phone number",
+    example: "+1234567890",
+  })
+  phone?: string;
+
+  @ApiPropertyOptional({
+    description: "Indicates whether the parent completed kids data onboarding",
+    example: true,
+  })
+  kidsDataCompleted?: boolean;
+}
 
 export class KidResponseDto {
   @ApiProperty({
@@ -63,6 +95,12 @@ export class KidResponseDto {
     example: "2024-01-15T10:30:00.000Z",
   })
   updatedAt: string;
+
+  @ApiPropertyOptional({
+    description: "Parent details for this kid",
+    type: KidParentResponseDto,
+  })
+  parent?: KidParentResponseDto;
 }
 
 export class KidsListResponseDto {

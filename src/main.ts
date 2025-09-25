@@ -73,17 +73,14 @@ async function bootstrap() {
     `
     )
     .setVersion("1.0.0")
-    .addBearerAuth(
-      {
-        type: "http",
-        scheme: "bearer",
-        bearerFormat: "JWT",
-        name: "JWT",
-        description: "Enter JWT token",
-        in: "header",
-      },
-      "JWT-auth"
-    )
+    .addBearerAuth({
+      type: "http",
+      scheme: "bearer",
+      bearerFormat: "JWT",
+      name: "JWT",
+      description: "Enter JWT token",
+      in: "header",
+    })
     .addTag("Authentication", "User authentication and authorization")
     .addTag("Kids", "Kids profile management for fitness programs")
     .addTag("Clients", "Client management and coach assignments")
