@@ -1,30 +1,67 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsEnum, IsInt, Min, Max, IsBoolean } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger";
+import {
+  IsString,
+  IsEnum,
+  IsInt,
+  Min,
+  Max,
+  IsBoolean,
+  IsNotEmpty,
+} from "class-validator";
 
 export class CreateKidDto {
-  @ApiProperty()
+  @ApiProperty({
+    description: "Full name of the child",
+    example: "Emma Johnson",
+    minLength: 2,
+    maxLength: 50,
+  })
   @IsString()
+  @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ enum: ['boy', 'girl'] })
-  @IsEnum(['boy', 'girl'])
-  gender: 'boy' | 'girl';
+  @ApiProperty({
+    enum: ["boy", "girl"],
+    description: "Gender of the child",
+    example: "girl",
+  })
+  @IsEnum(["boy", "girl"])
+  gender: "boy" | "girl";
 
-  @ApiProperty()
+  @ApiProperty({
+    description: "Age of the child in years",
+    example: 12,
+    minimum: 1,
+    maximum: 18,
+  })
   @IsInt()
   @Min(1)
   @Max(18)
   age: number;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: "Location/city where the child is based",
+    example: "New York, NY",
+    minLength: 2,
+    maxLength: 100,
+  })
   @IsString()
+  @IsNotEmpty()
   location: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description:
+      "Whether the child is currently participating in sports activities",
+    example: true,
+  })
   @IsBoolean()
   isInSports: boolean;
 
-  @ApiProperty({ enum: ['personal', 'group'] })
-  @IsEnum(['personal', 'group'])
-  preferredTrainingStyle: 'personal' | 'group';
+  @ApiProperty({
+    enum: ["personal", "group"],
+    description: "Preferred training style for the child",
+    example: "group",
+  })
+  @IsEnum(["personal", "group"])
+  preferredTrainingStyle: "personal" | "group";
 }
