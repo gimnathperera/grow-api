@@ -53,8 +53,6 @@ import { validate } from "class-validator";
   KidDetailResponseDto
 )
 @Controller("kids")
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
 export class KidsController {
   constructor(private kidsService: KidsService) {}
 
@@ -62,11 +60,11 @@ export class KidsController {
   @ApiOperation({
     summary: "Add kid details",
     description:
-      "Create a new kid profile for the authenticated user. This endpoint allows parents to register their children for fitness programs.",
+      "Create new kid profiles by providing the parent user's identifier directly in the payload. This endpoint is public and does not require authentication.",
   })
   @ApiBody({
     description:
-      "Kid profile information. Supports a single kid object (backward compatible) or up to 10 kids via array/payload.",
+      "Kid profile information. Each kid entry must include the parentId to associate the child with a parent. Supports a single kid object (backward compatible) or up to 10 kids via array/payload.",
     schema: {
       oneOf: [
         { $ref: getSchemaPath(CreateKidDto) },
@@ -79,6 +77,11 @@ export class KidsController {
         {
           type: "object",
           properties: {
+            parentId: {
+              type: "string",
+              description: "Unique identifier of the parent user applied to every kid in the request",
+              example: "507f1f77bcf86cd799439012",
+            },
             kids: {
               type: "array",
               items: { $ref: getSchemaPath(CreateKidDto) },
@@ -86,7 +89,7 @@ export class KidsController {
               maxItems: 10,
             },
           },
-          required: ["kids"],
+          required: ["parentId", "kids"],
         },
       ],
     },
@@ -130,24 +133,18 @@ export class KidsController {
       },
     },
   })
-  @ApiResponse({
-    status: 401,
-    description: "Unauthorized - Invalid or missing JWT token",
-  })
   @ApiConsumes("application/json")
   @ApiProduces("application/json")
   async addKid(
-    @Request() req,
     @Body() payload: any
   ): Promise<
     SuccessResponseDto<KidView | KidBulkCreateSummary>
   > {
     try {
-      const parentId = req.user.sub;
       const { entries, isBulk } = await this.normalizeAndValidatePayload(payload);
 
       if (isBulk) {
-        const summary = await this.kidsService.createMany(parentId, entries);
+        const summary = await this.kidsService.createMany(entries);
         return {
           ok: true,
           data: summary,
@@ -158,7 +155,7 @@ export class KidsController {
         };
       }
 
-      const kid = await this.kidsService.create(parentId, entries[0]);
+      const kid = await this.kidsService.create(entries[0]);
       return {
         ok: true,
         data: kid,
@@ -175,6 +172,8 @@ export class KidsController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get()
   @ApiOperation({
     summary: "Get kids for logged-in user",
@@ -228,6 +227,8 @@ export class KidsController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get(":id")
   @ApiOperation({
     summary: "Get kid by ID",
@@ -282,6 +283,8 @@ export class KidsController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Patch(":id")
   @ApiOperation({
     summary: "Update kid profile",
@@ -348,6 +351,8 @@ export class KidsController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Delete(":id")
   @ApiOperation({
     summary: "Delete kid profile",
@@ -426,6 +431,11 @@ export class KidsController {
       ? payload.kids
       : payload;
 
+    const wrapperParentId =
+      !Array.isArray(payload) && typeof payload?.parentId === "string"
+        ? payload.parentId.trim()
+        : undefined;
+
     if (!normalized) {
       throw new BadRequestException("Kid payload is required");
     }
@@ -444,10 +454,32 @@ export class KidsController {
     }
 
     const validatedEntries: CreateKidDto[] = [];
+    const parentIds = new Set<string>();
 
     for (let index = 0; index < items.length; index += 1) {
       const rawKid = items[index];
-      const kidDto = plainToInstance(CreateKidDto, rawKid, {
+      if (
+        wrapperParentId &&
+        typeof rawKid?.parentId === "string" &&
+        rawKid.parentId.trim() !== wrapperParentId
+      ) {
+        throw new BadRequestException(
+          `parentId mismatch for kid at index ${index}`
+        );
+      }
+
+      const kidSource =
+        wrapperParentId &&
+        (rawKid === null ||
+          typeof rawKid !== "object" ||
+          typeof rawKid?.parentId !== "string")
+          ? {
+              ...(typeof rawKid === "object" && rawKid !== null ? rawKid : {}),
+              parentId: wrapperParentId,
+            }
+          : rawKid;
+
+      const kidDto = plainToInstance(CreateKidDto, kidSource, {
         enableImplicitConversion: true,
       });
       const errors = await validate(kidDto, {
@@ -467,6 +499,13 @@ export class KidsController {
       }
 
       validatedEntries.push(kidDto);
+      parentIds.add(kidDto.parentId);
+    }
+
+    if (parentIds.size !== 1) {
+      throw new BadRequestException(
+        "All kid entries must use the same parentId"
+      );
     }
 
     return {

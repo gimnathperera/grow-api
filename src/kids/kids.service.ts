@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { CreateKidDto, UpdateKidDto } from "./dto/kids.dto";
@@ -53,8 +57,10 @@ export class KidsService {
     private usersService: UsersService
   ) {}
 
-  async create(parentId: string, dto: CreateKidDto): Promise<KidView> {
-    const kid = await this.kidModel.create({ ...dto, parentId });
+  async create(dto: CreateKidDto): Promise<KidView> {
+    const { parentId, ...kidData } = dto;
+
+    const kid = await this.kidModel.create({ ...kidData, parentId });
 
     await this.usersService.linkKidToParent(parentId, kid._id as Types.ObjectId);
 
@@ -69,11 +75,27 @@ export class KidsService {
     return this.mapKidResponse(kid);
   }
 
-  async createMany(
-    parentId: string,
-    dtos: CreateKidDto[]
-  ): Promise<KidBulkCreateSummary> {
-    const docs = dtos.map((dto) => ({ ...dto, parentId }));
+  async createMany(dtos: CreateKidDto[]): Promise<KidBulkCreateSummary> {
+    if (!dtos.length) {
+      throw new BadRequestException("At least one kid entry is required");
+    }
+
+    const uniqueParentIds = Array.from(
+      new Set(dtos.map((dto) => dto.parentId))
+    );
+
+    if (uniqueParentIds.length !== 1) {
+      throw new BadRequestException(
+        "All kid entries must reference the same parentId"
+      );
+    }
+
+    const [parentId] = uniqueParentIds;
+
+    const docs = dtos.map(({ parentId: _parentId, ...kidData }) => ({
+      ...kidData,
+      parentId,
+    }));
 
     const createdKids = await this.kidModel.insertMany(docs, {
       ordered: true,

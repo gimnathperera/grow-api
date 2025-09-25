@@ -11,6 +11,14 @@ import {
 
 export class CreateKidDto {
   @ApiProperty({
+    description: "Unique identifier of the parent user who owns this kid profile",
+    example: "507f1f77bcf86cd799439012",
+  })
+  @IsString()
+  @IsNotEmpty()
+  parentId: string;
+
+  @ApiProperty({
     description: "Full name of the child",
     example: "Emma Johnson",
     minLength: 2,
