@@ -8,6 +8,8 @@ import {
   Param,
   Patch,
   Delete,
+  HttpException,
+  HttpStatus,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -21,7 +23,7 @@ import {
 } from "@nestjs/swagger";
 import { KidsService } from "./kids.service";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
-import { CreateKidDto } from "./dto/kids.dto";
+import { CreateKidDto, UpdateKidDto } from "./dto/kids.dto";
 import {
   KidResponseDto,
   KidsListResponseDto,
@@ -74,12 +76,19 @@ export class KidsController {
     @Request() req,
     @Body() dto: CreateKidDto
   ): Promise<SuccessResponseDto<any>> {
-    const kid = await this.kidsService.create(req.user.sub, dto);
-    return {
-      ok: true,
-      data: kid,
-      meta: { traceId: "add-kid", timestamp: new Date().toISOString() },
-    };
+    try {
+      const kid = await this.kidsService.create(req.user.sub, dto);
+      return {
+        ok: true,
+        data: kid,
+        meta: { traceId: "add-kid", timestamp: new Date().toISOString() },
+      };
+    } catch (error) {
+      throw new HttpException(
+        "Failed to create kid profile",
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   @Get()
@@ -99,12 +108,19 @@ export class KidsController {
   })
   @ApiProduces("application/json")
   async getKids(@Request() req): Promise<SuccessResponseDto<any[]>> {
-    const kids = await this.kidsService.findByParent(req.user.sub);
-    return {
-      ok: true,
-      data: kids,
-      meta: { traceId: "get-kids", timestamp: new Date().toISOString() },
-    };
+    try {
+      const kids = await this.kidsService.findByParent(req.user.sub);
+      return {
+        ok: true,
+        data: kids,
+        meta: { traceId: "get-kids", timestamp: new Date().toISOString() },
+      };
+    } catch (error) {
+      throw new HttpException(
+        "Failed to retrieve kids",
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   @Get(":id")
@@ -146,12 +162,19 @@ export class KidsController {
     @Param("id") id: string,
     @Request() req
   ): Promise<SuccessResponseDto<any>> {
-    const kid = await this.kidsService.findByIdAndParent(id, req.user.sub);
-    return {
-      ok: true,
-      data: kid,
-      meta: { traceId: "get-kid", timestamp: new Date().toISOString() },
-    };
+    try {
+      const kid = await this.kidsService.findByIdAndParent(id, req.user.sub);
+      return {
+        ok: true,
+        data: kid,
+        meta: { traceId: "get-kid", timestamp: new Date().toISOString() },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException("Kid not found", HttpStatus.NOT_FOUND);
+    }
   }
 
   @Patch(":id")
@@ -166,7 +189,7 @@ export class KidsController {
     example: "507f1f77bcf86cd799439011",
   })
   @ApiBody({
-    type: CreateKidDto,
+    type: UpdateKidDto,
     description:
       "Updated kid profile information. All fields are optional for partial updates.",
   })
@@ -202,15 +225,22 @@ export class KidsController {
   @ApiProduces("application/json")
   async updateKid(
     @Param("id") id: string,
-    @Body() dto: Partial<CreateKidDto>,
+    @Body() dto: UpdateKidDto,
     @Request() req
   ): Promise<SuccessResponseDto<any>> {
-    const kid = await this.kidsService.update(id, req.user.sub, dto);
-    return {
-      ok: true,
-      data: kid,
-      meta: { traceId: "update-kid", timestamp: new Date().toISOString() },
-    };
+    try {
+      const kid = await this.kidsService.update(id, req.user.sub, dto);
+      return {
+        ok: true,
+        data: kid,
+        meta: { traceId: "update-kid", timestamp: new Date().toISOString() },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException("Kid not found", HttpStatus.NOT_FOUND);
+    }
   }
 
   @Delete(":id")
@@ -266,11 +296,18 @@ export class KidsController {
     @Param("id") id: string,
     @Request() req
   ): Promise<SuccessResponseDto<null>> {
-    await this.kidsService.delete(id, req.user.sub);
-    return {
-      ok: true,
-      data: null,
-      meta: { traceId: "delete-kid", timestamp: new Date().toISOString() },
-    };
+    try {
+      await this.kidsService.delete(id, req.user.sub);
+      return {
+        ok: true,
+        data: null,
+        meta: { traceId: "delete-kid", timestamp: new Date().toISOString() },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException("Kid not found", HttpStatus.NOT_FOUND);
+    }
   }
 }

@@ -65,3 +65,66 @@ export class CreateKidDto {
   @IsEnum(["personal", "group"])
   preferredTrainingStyle: "personal" | "group";
 }
+
+export class UpdateKidDto {
+  @ApiProperty({
+    description: "Full name of the child",
+    example: "Emma Johnson",
+    minLength: 2,
+    maxLength: 50,
+    required: false,
+  })
+  @IsString()
+  @IsNotEmpty()
+  name?: string;
+
+  @ApiProperty({
+    enum: ["boy", "girl"],
+    description: "Gender of the child",
+    example: "girl",
+    required: false,
+  })
+  @IsEnum(["boy", "girl"])
+  gender?: "boy" | "girl";
+
+  @ApiProperty({
+    description: "Age of the child in years",
+    example: 12,
+    minimum: 1,
+    maximum: 18,
+    required: false,
+  })
+  @IsInt()
+  @Min(1)
+  @Max(18)
+  age?: number;
+
+  @ApiProperty({
+    description: "Location/city where the child is based",
+    example: "New York, NY",
+    minLength: 2,
+    maxLength: 100,
+    required: false,
+  })
+  @IsString()
+  @IsNotEmpty()
+  location?: string;
+
+  @ApiProperty({
+    description:
+      "Whether the child is currently participating in sports activities",
+    example: true,
+    required: false,
+  })
+  @IsBoolean()
+  isInSports?: boolean;
+
+  @ApiProperty({
+    enum: ["personal", "group"],
+    description: "Preferred training style for the child",
+    example: "group",
+    required: false,
+  })
+  @IsEnum(["personal", "group"])
+  preferredTrainingStyle?: "personal" | "group";
+}

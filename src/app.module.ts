@@ -30,6 +30,7 @@ import { AdminModule } from "./admin/admin.module";
 import { AuditsModule } from "./audits/audits.module";
 import { FilesModule } from "./files/files.module";
 import { TeamModule } from "./team/team.module";
+import { KidsModule } from "./kids/kids.module";
 
 // Common modules
 import { CommonModule } from "./common/common.module";
@@ -81,6 +82,7 @@ import { ThrottlerGuard } from "@nestjs/throttler";
     AuditsModule,
     FilesModule,
     TeamModule,
+    KidsModule,
 
     // Common utilities
     CommonModule,
