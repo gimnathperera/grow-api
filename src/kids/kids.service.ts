@@ -40,6 +40,12 @@ export interface KidView {
   parent?: KidParentSummary;
 }
 
+export interface KidBulkCreateSummary {
+  created: number;
+  kids: KidView[];
+  kidIds: string[];
+}
+
 @Injectable()
 export class KidsService {
   constructor(
@@ -61,6 +67,38 @@ export class KidsService {
     });
 
     return this.mapKidResponse(kid);
+  }
+
+  async createMany(
+    parentId: string,
+    dtos: CreateKidDto[]
+  ): Promise<KidBulkCreateSummary> {
+    const docs = dtos.map((dto) => ({ ...dto, parentId }));
+
+    const createdKids = await this.kidModel.insertMany(docs, {
+      ordered: true,
+    });
+
+    const kidIds = createdKids.map((kid) => kid._id as Types.ObjectId);
+
+    await this.usersService.linkKidsToParent(parentId, kidIds);
+    await this.usersService.updateKidsDataStatus(parentId, true);
+
+    const populatedKids = await this.kidModel
+      .find({ _id: { $in: kidIds } })
+      .populate({
+        path: "parent",
+        select: "name email phone kidsDataCompleted",
+      })
+      .exec();
+
+    const kidViews = populatedKids.map((kid) => this.mapKidResponse(kid));
+
+    return {
+      created: kidViews.length,
+      kids: kidViews,
+      kidIds: kidViews.map((kid) => kid._id),
+    };
   }
 
   async findByParent(parentId: string): Promise<KidView[]> {

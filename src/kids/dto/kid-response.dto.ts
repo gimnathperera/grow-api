@@ -142,3 +142,24 @@ export class KidDetailResponseDto {
     timestamp: string;
   };
 }
+
+export class KidBulkCreateSummaryDto {
+  @ApiProperty({
+    description: "Total number of kids created in the request",
+    example: 3,
+  })
+  created: number;
+
+  @ApiProperty({
+    description: "Identifiers of the created kids",
+    type: [String],
+    example: ["507f1f77bcf86cd799439011", "507f1f77bcf86cd799439012"],
+  })
+  kidIds: string[];
+
+  @ApiProperty({
+    description: "Details of the created kids",
+    type: [KidResponseDto],
+  })
+  kids: KidResponseDto[];
+}

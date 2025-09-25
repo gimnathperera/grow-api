@@ -159,6 +159,25 @@ export class UsersService {
     }
   }
 
+  async linkKidsToParent(
+    userId: string,
+    kidIds: Array<Types.ObjectId | string>
+  ): Promise<void> {
+    const formattedIds = kidIds.map((kidId) =>
+      typeof kidId === 'string' ? new Types.ObjectId(kidId) : kidId
+    );
+
+    const result = await this.userModel.findByIdAndUpdate(
+      userId,
+      { $addToSet: { kids: { $each: formattedIds } } },
+      { new: false },
+    );
+
+    if (!result) {
+      throw new NotFoundException('User not found');
+    }
+  }
+
   async unlinkKidFromParent(
     userId: string,
     kidId: Types.ObjectId | string

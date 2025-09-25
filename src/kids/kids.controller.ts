@@ -12,6 +12,7 @@ import {
   HttpStatus,
   Query,
   ForbiddenException,
+  BadRequestException,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -23,19 +24,34 @@ import {
   ApiConsumes,
   ApiProduces,
   ApiQuery,
+  getSchemaPath,
+  ApiExtraModels,
 } from "@nestjs/swagger";
-import { KidView, KidsService } from "./kids.service";
+import {
+  KidBulkCreateSummary,
+  KidView,
+  KidsService,
+} from "./kids.service";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { CreateKidDto, UpdateKidDto } from "./dto/kids.dto";
 import {
   KidResponseDto,
   KidsListResponseDto,
   KidDetailResponseDto,
+  KidBulkCreateSummaryDto,
 } from "./dto/kid-response.dto";
 import { SuccessResponseDto } from "../common/dto/response.dto";
 import { UserRole } from "../common/guards/roles.guard";
+import { plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
 
 @ApiTags("Kids")
+@ApiExtraModels(
+  CreateKidDto,
+  KidResponseDto,
+  KidBulkCreateSummaryDto,
+  KidDetailResponseDto
+)
 @Controller("kids")
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
@@ -49,14 +65,58 @@ export class KidsController {
       "Create a new kid profile for the authenticated user. This endpoint allows parents to register their children for fitness programs.",
   })
   @ApiBody({
-    type: CreateKidDto,
     description:
-      "Kid profile information including name, gender, age, location, sports participation, and preferred training style.",
+      "Kid profile information. Supports a single kid object (backward compatible) or up to 10 kids via array/payload.",
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(CreateKidDto) },
+        {
+          type: "array",
+          items: { $ref: getSchemaPath(CreateKidDto) },
+          minItems: 1,
+          maxItems: 10,
+        },
+        {
+          type: "object",
+          properties: {
+            kids: {
+              type: "array",
+              items: { $ref: getSchemaPath(CreateKidDto) },
+              minItems: 1,
+              maxItems: 10,
+            },
+          },
+          required: ["kids"],
+        },
+      ],
+    },
   })
   @ApiResponse({
     status: 201,
     description: "Kid profile created successfully",
     type: KidDetailResponseDto,
+  })
+  @ApiResponse({
+    status: 201,
+    description: "Kid profiles created successfully (bulk)",
+    schema: {
+      type: "object",
+      properties: {
+        ok: { type: "boolean", example: true },
+        data: { $ref: getSchemaPath(KidBulkCreateSummaryDto) },
+        meta: {
+          type: "object",
+          properties: {
+            traceId: { type: "string", example: "add-kids-bulk" },
+            timestamp: {
+              type: "string",
+              format: "date-time",
+              example: "2024-01-15T10:30:00.000Z",
+            },
+          },
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 400,
@@ -78,10 +138,27 @@ export class KidsController {
   @ApiProduces("application/json")
   async addKid(
     @Request() req,
-    @Body() dto: CreateKidDto
-  ): Promise<SuccessResponseDto<KidView>> {
+    @Body() payload: any
+  ): Promise<
+    SuccessResponseDto<KidView | KidBulkCreateSummary>
+  > {
     try {
-      const kid = await this.kidsService.create(req.user.sub, dto);
+      const parentId = req.user.sub;
+      const { entries, isBulk } = await this.normalizeAndValidatePayload(payload);
+
+      if (isBulk) {
+        const summary = await this.kidsService.createMany(parentId, entries);
+        return {
+          ok: true,
+          data: summary,
+          meta: {
+            traceId: "add-kids-bulk",
+            timestamp: new Date().toISOString(),
+          },
+        };
+      }
+
+      const kid = await this.kidsService.create(parentId, entries[0]);
       return {
         ok: true,
         data: kid,
@@ -337,5 +414,64 @@ export class KidsController {
       }
       throw new HttpException("Kid not found", HttpStatus.NOT_FOUND);
     }
+  }
+
+  private async normalizeAndValidatePayload(payload: any): Promise<{
+    entries: CreateKidDto[];
+    isBulk: boolean;
+  }> {
+    const normalized = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.kids)
+      ? payload.kids
+      : payload;
+
+    if (!normalized) {
+      throw new BadRequestException("Kid payload is required");
+    }
+
+    const items = Array.isArray(normalized) ? normalized : [normalized];
+
+    if (!items.length) {
+      throw new BadRequestException("Kid payload cannot be empty");
+    }
+
+    const MAX_BULK_KIDS = 10;
+    if (items.length > MAX_BULK_KIDS) {
+      throw new BadRequestException(
+        `You can create up to ${MAX_BULK_KIDS} kids in a single request`
+      );
+    }
+
+    const validatedEntries: CreateKidDto[] = [];
+
+    for (let index = 0; index < items.length; index += 1) {
+      const rawKid = items[index];
+      const kidDto = plainToInstance(CreateKidDto, rawKid, {
+        enableImplicitConversion: true,
+      });
+      const errors = await validate(kidDto, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      });
+
+      if (errors.length) {
+        const errorMessages = errors
+          .map((error) => Object.values(error.constraints ?? {}))
+          .flat();
+
+        throw new BadRequestException({
+          message: `Validation failed for kid at index ${index}`,
+          errors: errorMessages,
+        });
+      }
+
+      validatedEntries.push(kidDto);
+    }
+
+    return {
+      entries: validatedEntries,
+      isBulk: Array.isArray(normalized),
+    };
   }
 }
